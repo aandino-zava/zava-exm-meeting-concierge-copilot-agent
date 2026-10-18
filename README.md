@@ -2,6 +2,8 @@
 
 ## Overview
 
+https://github.com/user-attachments/assets/aca4d7c4-49a9-40d1-8c44-e0270d2c725d
+
 I built the Zava ExM Meeting Concierge Copilot Agent to explore a practical governance problem: how can I let an AI agent reason about calendar changes while keeping the final write decision in a separate enforcement path?
 
 This proof of concept uses **one Copilot Studio agent, two Power Automate flows, Microsoft Graph, and a governance rule table in Dataverse**. The agent invokes one tool, **Check and move meeting**, and explains its verified result. The flow selects eligible meetings, finds replacement times, and enforces the checks. **Every calendar write goes through this Gatekeeper; the agent cannot authorize a change through its own reasoning.**
