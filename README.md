@@ -154,6 +154,8 @@ For instructions on setting up that environment structure, access controls, depl
 
 ## Deployment and Import Notes
 
+To bring saved Dev changes back into GitHub, run the manual **Pull from Dev** workflow. It exports the solution, removes installation values, rebuilds the package, runs checks, and opens a pull request for review. Merging updates the repository and downloadable ZIP; it does not deploy. Follow [the Dev sync steps](docs/pull-from-dev.md) for one-time access setup and the four-step process.
+
 Use the [GitHub Actions deployment guide](docs/deployment.md) to build, check, and import **Zava ExM Meeting Concierge** into a configured target environment.
 
 **First-time authorization is required in the receiving tenant. Its administrator must authorize the deployment identity, create the account connections, and provide the target settings.** The workflow uses federated sign-in without a stored client secret. It imports the checked artifact and verifies components; the administrator then completes rule data, agent authentication/publication, and calendar acceptance checks before enabling processing.

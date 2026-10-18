@@ -1,0 +1,140 @@
+name: Pull from Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: GitHub environment authorized for Dev export
+        type: environment
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  pull:
+    name: Export check and propose changes
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: meeting-concierge-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Check Dev setup
+        env:
+          TARGET_URL: ${{ vars.ENVIRONMENT_URL }}
+          TENANT_ID: ${{ vars.TENANT_ID }}
+          CLIENT_ID: ${{ vars.CLIENT_ID }}
+          DEV_EXPORT_ENABLED: ${{ vars.DEV_EXPORT_ENABLED }}
+        run: |
+          if ($env:DEV_EXPORT_ENABLED -ne 'true') { throw 'Set DEV_EXPORT_ENABLED=true only on the GitHub environment for your intended Dev source. See docs/pull-from-dev.md.' }
+          $target = [uri]$env:TARGET_URL
+          if (-not $target.IsAbsoluteUri -or $target.Scheme -ne 'https' -or $target.Host -notmatch '^[a-zA-Z0-9-]+\.crm[0-9]*\.dynamics\.com$' -or $target.AbsolutePath -ne '/' -or $target.Query -or $target.Fragment -or $target.UserInfo) { throw 'ENVIRONMENT_URL must be the intended Dataverse organization HTTPS URL.' }
+          foreach ($value in @($env:TENANT_ID, $env:CLIENT_ID)) {
+            $parsed = [guid]::Empty
+            if (-not [guid]::TryParse($value, [ref]$parsed) -or $parsed -eq [guid]::Empty) { throw 'Set TENANT_ID and CLIENT_ID to the Dev tenant and application GUIDs.' }
+          }
+      - name: Install test dependencies
+        run: python -m pip install -r scripts/requirements.txt
+      - name: Install Power Platform CLI
+        uses: microsoft/powerplatform-actions/actions-install@6e91314a9c6e694ea5c894fe8c40e09d73aa892b # v1
+        with:
+          pac-version-override: '2.13.1'
+          add-tools-to-path: true
+      - name: Sign in to Dev
+        env:
+          TARGET_URL: ${{ vars.ENVIRONMENT_URL }}
+          TENANT_ID: ${{ vars.TENANT_ID }}
+          CLIENT_ID: ${{ vars.CLIENT_ID }}
+        run: |
+          pac auth create --name concierge-export --environment $env:TARGET_URL --tenant $env:TENANT_ID --applicationId $env:CLIENT_ID --githubFederated
+          if ($LASTEXITCODE -ne 0) { throw 'Dev sign-in failed. Check federation and the Dataverse application user.' }
+      - name: Export Dev solution
+        env:
+          TARGET_URL: ${{ vars.ENVIRONMENT_URL }}
+        run: ./scripts/export-solution.ps1 -EnvironmentUrl $env:TARGET_URL
+      - name: Remove temporary tenant sign-in
+        if: always()
+        run: |
+          if (Get-Command pac -ErrorAction SilentlyContinue) {
+            pac auth clear
+            if ($LASTEXITCODE -ne 0) { throw 'Could not clear the temporary PAC profile' }
+          }
+      - name: Prepare portable source
+        run: |
+          python scripts/prepare-dev-export.py --folder build/live-export/unpacked --apply
+          if ($LASTEXITCODE -ne 0) { throw 'Export needs review. No PR or raw export artifact will be created.' }
+      - name: Detect source changes
+        id: changes
+        run: |
+          git add -- solution/unpacked
+          if ($LASTEXITCODE -ne 0) { throw 'Could not compare source' }
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            'changed=false' >> $env:GITHUB_OUTPUT
+            'No portable source changes were found. No pull request or replacement package was needed.' >> $env:GITHUB_STEP_SUMMARY
+          } elseif ($LASTEXITCODE -eq 1) {
+            'changed=true' >> $env:GITHUB_OUTPUT
+          } else { throw 'Source comparison failed' }
+          exit 0
+      - name: Rebuild downloadable package
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          ./scripts/pack-solution.ps1 -OutputPath ./solution/exports/ZavaExMMeetingConcierge.zip
+          python scripts/record-provenance.py --pac-version '2.13.1' --source dev-export --source-run-url "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          if ($LASTEXITCODE -ne 0) { throw 'Provenance update failed' }
+      - name: Check exported changes and package
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          foreach ($test in @('validate.py', 'test_resolver.py', 'test_deployment.py', 'test_verify_import.py', 'test_prepare_dev_export.py')) {
+            python "scripts/$test"
+            if ($LASTEXITCODE -ne 0) { throw "Checks failed in $test. Review the Dev changes before retrying." }
+          }
+          ./scripts/test-import.ps1
+      - name: Open review pull request
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $branch = "dev-export/$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          git switch -c $branch
+          if ($LASTEXITCODE -ne 0) { throw 'Could not create export branch' }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- solution/unpacked solution/exports/ZavaExMMeetingConcierge.zip solution/exports/SHA256SUMS.txt solution/provenance.json
+          git commit -m 'Update solution from Dev and rebuild package'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not commit checked changes' }
+          git push origin $branch
+          if ($LASTEXITCODE -ne 0) { throw 'Could not push export branch' }
+          $body = @"
+          Imports the saved Dev solution changes and rebuilds the portable deployment package.
+
+          Installation values were removed and packaged flows are off. Source, scheduling, package, and deployment-script checks passed in this workflow. Review the source diff and any behavior or setup changes before merging. Live calendar acceptance remains separate.
+
+          Export and checks: $env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID
+          "@
+          $bodyPath = Join-Path $env:RUNNER_TEMP 'dev-export-pr.md'
+          [System.IO.File]::WriteAllText($bodyPath, $body, [System.Text.UTF8Encoding]::new($false))
+          $pr = gh pr create --base main --head $branch --title 'Update solution from Dev' --body-file $bodyPath
+          if ($LASTEXITCODE -ne 0) { throw 'The branch was saved, but PR creation failed. Enable Actions pull requests in repository Settings > Actions > General, or open a PR from the saved dev-export branch.' }
+          "Review the updated source and rebuilt package: $pr" >> $env:GITHUB_STEP_SUMMARY
+      - name: Save checked package
+        if: steps.changes.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ZavaExMMeetingConcierge
+          path: |
+            solution/exports/ZavaExMMeetingConcierge.zip
+            solution/exports/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14

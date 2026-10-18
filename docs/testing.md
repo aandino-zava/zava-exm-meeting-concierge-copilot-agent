@@ -11,6 +11,7 @@ The [Meeting Concierge workflow](https://github.com/aandino-zava/zava-exm-meetin
 | Import-script safeguards | Invalid settings, invalid target URLs, and checksum mismatches stop before tenant access; deployment uses an explicit target and checked package |
 | Post-import verification tests | The verification script accepts complete components and rejects enabled flows, missing configuration/connections, incorrect tool bindings, and mismatched internal revisions |
 | Source validation | File formats, local documentation links, current package/source fingerprints, credential patterns, and the single agent tool pass validation |
+| Dev export preparation | Installation values are removed, packaged flows are off, Dev edits are preserved, and unsafe or incompatible exports are rejected |
 
 The build saves the solution ZIP and checksum as a downloadable artifact. An explicitly requested deployment uses that same artifact. After import, the deployment job checks the exported target components and inactive flow states.
 
@@ -50,6 +51,7 @@ Use Python, PowerShell, and the official Power Platform CLI as described in [the
 python -m pip install -r scripts/requirements.txt
 python scripts/validate.py
 python scripts/test_resolver.py
+python scripts/test_prepare_dev_export.py
 ./scripts/pack-solution.ps1
 python scripts/test_deployment.py
 python scripts/test_verify_import.py

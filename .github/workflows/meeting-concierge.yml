@@ -40,6 +40,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Source validation failed' }
           python scripts/test_resolver.py
           if ($LASTEXITCODE -ne 0) { throw 'Scheduling checks failed' }
+          python scripts/test_prepare_dev_export.py
+          if ($LASTEXITCODE -ne 0) { throw 'Dev export checks failed' }
       - name: Install Power Platform CLI
         uses: microsoft/powerplatform-actions/actions-install@6e91314a9c6e694ea5c894fe8c40e09d73aa892b # v1
         with:

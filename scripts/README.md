@@ -10,6 +10,7 @@ Use Python 3.12, PowerShell, and an official Power Platform CLI. The workflow pi
 python -m pip install -r scripts/requirements.txt
 python scripts/validate.py
 python scripts/test_resolver.py
+python scripts/test_prepare_dev_export.py
 ./scripts/pack-solution.ps1
 python scripts/test_deployment.py
 python scripts/test_verify_import.py
@@ -38,4 +39,8 @@ Product and download names stay stable. Internal revision numbers and Git commit
 
 ## Review live changes
 
-After verifying the intended environment, `export-solution.ps1 -EnvironmentUrl <source-url>` stages an authenticated live ZIP and unpacked source under `build/live-export/`. Review that diff before changing portable source or the downloadable package. It does not overwrite them automatically.
+Use [Pull from Dev](../docs/pull-from-dev.md) for the manual GitHub workflow. It prepares the export, rebuilds the package and provenance, checks the result, and opens a review pull request.
+
+For local inspection, `export-solution.ps1 -EnvironmentUrl <source-url>` stages an authenticated live ZIP and unpacked source under `build/live-export/`. It does not overwrite portable source automatically. `prepare-dev-export.py --folder <staged-source>` removes installation values and sets exported flow state off. Add `--apply` only when you intend to replace `solution/unpacked` in your checkout. It preserves Dev logic and rejects unsupported hard-coded installation values. Review and test before rebuilding the download.
+
+`record-provenance.py --source dev-export --source-run-url <workflow-url>` identifies a portable build originating in a normalized Dev export. The default remains a repository-authored build. Neither establishes runtime acceptance.
