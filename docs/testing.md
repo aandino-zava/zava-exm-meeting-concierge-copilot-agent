@@ -43,22 +43,13 @@ Record completed target-environment checks in [the installation acceptance recor
 
 ## 4. How to repeat the checks
 
-### Local package and scheduling checks
+### Package and scheduling checks
 
-Use Python, PowerShell, and the official Power Platform CLI as described in [the script instructions](../scripts/README.md). These checks do not require tenant credentials:
+Open the [Meeting Concierge workflow](https://github.com/aandino-zava/zava-exm-meeting-concierge-copilot-agent/actions/workflows/meeting-concierge.yml) and review **Build and check** for the source commit you intend to use. It runs the automated checks listed above and saves the checked package.
 
-```powershell
-python -m pip install -r scripts/requirements.txt
-python scripts/validate.py
-python scripts/test_resolver.py
-python scripts/test_prepare_dev_export.py
-./scripts/pack-solution.ps1
-python scripts/test_deployment.py
-python scripts/test_verify_import.py
-./scripts/test-import.ps1
-```
+Maintainers can repeat these checks locally using [the local check instructions](../scripts/README.md#run-local-checks). That guide lists the required tools, commands, and how to check a newly built package. Local checks do not require tenant credentials.
 
-All checks must pass. To check a newly built ZIP rather than the committed download, set `CONCIERGE_PACKAGE_PATH` to its path before running `test_deployment.py`.
+All checks must pass before using a package.
 
 ### Deployment and live calendar acceptance
 

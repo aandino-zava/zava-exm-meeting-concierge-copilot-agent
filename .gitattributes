@@ -1,2 +1,4 @@
 * -text
 # Preserve the exact native baseline bytes and archive hashes across checkouts.
+# Exclude supporting automation from GitHub's language summary.
+/scripts/** -linguist-detectable

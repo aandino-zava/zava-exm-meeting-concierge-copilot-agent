@@ -130,7 +130,9 @@ Dataverse actions remain within the calendar flow. Counts describe exported comp
 
 Recorded live evidence covers no conflict, a resolved ordinary-meeting conflict with the board meeting preserved, and two protected meetings requiring help. The resolved case sent no notification; the unresolved protected conflict submitted an assistant email. Calendar times and notification results were checked beyond the parent flow's success status.
 
-The repository includes **27 local workflow simulations** against the flow definitions, plus package and deployment-script checks. These use simulated services and are separate from live platform tests. The GitHub Actions workflow builds and checks source automatically, with tenant deployment available only through an explicit manual run. The receiving tenant's independent deployment and calendar acceptance results are recorded separately.
+The repository includes **27 local workflow simulations** against the flow definitions, plus package and deployment-script checks. These use simulated services and are separate from live platform tests.
+
+Supporting scripts check the solution package and deployment process. GitHub Actions runs these checks automatically and builds the package, with tenant deployment available only through an explicit manual run. The receiving tenant's independent deployment and calendar acceptance results are recorded separately.
 
 See [test evidence and its limits](docs/testing.md). To verify an installation, follow the [calendar acceptance scenarios](docs/deployment.md#test-the-installed-solution).
 
