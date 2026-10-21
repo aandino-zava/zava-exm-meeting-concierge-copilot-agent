@@ -75,7 +75,7 @@ Outlook and Dataverse connections operate inside the flow. Removing their separa
 
 See [the detailed architecture](docs/architecture.md) for the exact search behavior, result states, and failure handling.
 
-## The Gatekeeper Pattern
+## The Gatekeeper Pattern Explained
 
 The agent can request that a meeting be checked. It cannot turn its explanation, a suggested time, or text in an event into permission to change the calendar. The Gatekeeper accepts the event ID and obtains the facts it needs independently.
 
